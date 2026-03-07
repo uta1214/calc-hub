@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy"
+  content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline' 'unsafe-eval';">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CalcHub</title>
+
+<style>
+  :root {
+    --bg0:    var(--vscode-sideBar-background,          #0f1117);
+    --bg1:    var(--vscode-editor-background,           #161b22);
+    --bg2:    var(--vscode-input-background,            #1c2128);
+    --bg3:    var(--vscode-button-secondaryBackground,  #252b34);
+    --border: var(--vscode-panel-border,
+              var(--vscode-input-border,                #30363d));
+    --accent:  var(--vscode-focusBorder,                #58a6ff);
+    --accent2: var(--vscode-terminal-ansiGreen,
+               var(--vscode-debugIcon-startForeground,  #3fb950));
+    --accent3: var(--vscode-errorForeground,
+               var(--vscode-terminal-ansiRed,           #f78166));
+    --accent4: var(--vscode-terminal-ansiMagenta,
+               var(--vscode-symbolIcon-functionForeground, #d2a8ff));
+    --text0: var(--vscode-foreground,                   #e6edf3);
+    --text1: var(--vscode-descriptionForeground,        #8b949e);
+    --text2: var(--vscode-disabledForeground,           #484f58);
+    --eq-bg:    var(--vscode-button-background,         #58a6ff);
+    --eq-color: var(--vscode-button-foreground,         #ffffff);
+    --font-mono:    'JetBrains Mono', var(--vscode-editor-font-family), 'Courier New', monospace;
+    --font-display: 'Space Mono', 'Courier New', monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg0); color: var(--text0); font-family: var(--font-mono); overflow-x: hidden; }
+
+  /* ── Tabs ── */
+  .tabs { display: flex; background: var(--bg1); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 10; }
+  .tab {
+    flex: 1; padding: 8px 2px;
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--text1); background: none; border: none; cursor: pointer;
+    border-bottom: 2px solid transparent; transition: all 0.15s;
+  }
+  .tab:hover  { color: var(--text0); background: var(--bg2); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* ── Display ── */
+  .display { background: var(--bg1); padding: 10px 12px 8px; border-bottom: 1px solid var(--border); }
+  .expr-line { font-size: 12px; color: var(--text2); min-height: 14px; word-break: break-all; letter-spacing: 0.04em; }
+  .result-line {
+    font-family: var(--vscode-editor-font-family, 'JetBrains Mono', 'Courier New', monospace);
+    font-size: 28px; font-weight: 400;
+    color: var(--text0); text-align: right; letter-spacing: 0.02em;
+    min-height: 32px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    transition: color 0.2s;
+  }
+  .result-line.ok    { color: var(--accent); }
+  .result-line.error { color: var(--accent3); font-size: 15px; line-height: 28px; }
+  .intermediate {
+    font-size: 11px; color: var(--text2); text-align: right; min-height: 12px;
+    letter-spacing: 0.02em; font-style: italic; margin-top: 1px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .input-row { display: flex; align-items: center; gap: 5px; margin-top: 7px; }
+  .expr-input {
+    flex: 1; background: var(--bg2); border: 1px solid var(--border); border-radius: 4px;
+    color: var(--text0); font-family: var(--font-mono); font-size: 14px;
+    padding: 5px 8px; outline: none; transition: border-color 0.15s; caret-color: var(--accent);
+  }
+  .expr-input:focus { border-color: var(--accent); }
+  .expr-input::placeholder { color: var(--text2); }
+  .angle-toggle {
+    font-family: var(--font-mono); font-size: 11px; font-weight: 700;
+    padding: 5px 6px; background: var(--bg3); border: 1px solid var(--border); border-radius: 4px;
+    color: var(--accent4); cursor: pointer; white-space: nowrap; transition: all 0.15s;
+  }
+  .angle-toggle:hover { border-color: var(--accent4); }
+
+  /* ── Panels ── */
+  .panel { padding: 8px 8px 10px; display: none; }
+  .panel.active { display: block; }
+  .btn-grid { display: grid; gap: 4px; }
+  .btn-grid-4 { grid-template-columns: repeat(4, 1fr); }
+  .btn-grid-3 { grid-template-columns: repeat(3, 1fr); }
+  .btn {
+    font-family: var(--font-mono); font-size: 13px; font-weight: 600;
+    padding: 9px 4px; border: 1px solid var(--border); border-radius: 4px;
+    background: var(--bg2); color: var(--text0); cursor: pointer;
+    transition: background 0.1s, border-color 0.1s, transform 0.08s;
+    user-select: none; letter-spacing: 0.02em;
+  }
+  .btn:hover  { background: var(--bg3); border-color: var(--text2); }
+  .btn:active { transform: scale(0.94); }
+  .btn.op    { color: var(--accent); }
+  .btn.eq    { background: var(--eq-bg); color: var(--eq-color); border-color: var(--eq-bg); font-weight: 700; }
+  .btn.eq:hover { filter: brightness(1.15); }
+  .btn.fn    { color: var(--accent4); font-size: 12px; }
+  .btn.clr   { color: var(--accent3); }
+  .btn.const-col { color: var(--accent2); font-size: 12px; }
+
+  /* ── 定数エリア ── */
+  .const-area { border-top: 1px solid var(--border); padding: 6px 8px 8px; }
+  .const-label { font-size: 10px; color: var(--text2); letter-spacing: 0.1em; text-transform: uppercase; display: block; margin-bottom: 5px; }
+  .const-add-row { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 5px; }
+  .const-name-input, .const-val-input {
+    background: var(--bg2); border: 1px solid var(--border); border-radius: 4px;
+    color: var(--text0); font-family: var(--font-mono); font-size: 12px;
+    padding: 4px 6px; outline: none; transition: border-color 0.15s; caret-color: var(--accent);
+    min-width: 0;
+  }
+  .const-name-input { width: 56px; flex-shrink: 0; }
+  .const-val-input  { flex: 1; min-width: 60px; }
+  .const-name-input:focus, .const-val-input:focus { border-color: var(--accent); }
+  .const-add-btn {
+    font-family: var(--font-mono); font-size: 12px; font-weight: 700;
+    padding: 4px 8px; background: var(--bg3); border: 1px solid var(--border); border-radius: 4px;
+    color: var(--accent2); cursor: pointer; white-space: nowrap; transition: border-color 0.15s;
+  }
+  .const-add-btn:hover { border-color: var(--accent2); }
+  .const-list { display: flex; flex-wrap: wrap; gap: 4px; }
+  .const-chip {
+    display: flex; align-items: center; gap: 3px;
+    background: var(--bg2); border: 1px solid var(--border); border-radius: 3px;
+    padding: 3px 5px 3px 7px; cursor: pointer; transition: border-color 0.15s;
+  }
+  .const-chip:hover { border-color: var(--accent); }
+  .const-chip-name { font-size: 12px; color: var(--accent2); font-weight: 600; }
+  .const-chip-val  { font-size: 11px; color: var(--text1); }
+  .const-chip-del  { font-size: 13px; color: var(--text2); cursor: pointer; padding: 0 1px; margin-left: 1px; line-height: 1; transition: color 0.1s; }
+  .const-chip-del:hover { color: var(--accent3); }
+  .const-empty { font-size: 11px; color: var(--text2); font-style: italic; }
+
+  /* ── Base panel ── */
+  .conv-results { display: flex; flex-direction: column; gap: 4px; }
+  .conv-row {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--bg2); border: 1px solid var(--border);
+    border-left: 3px solid var(--border); border-radius: 4px;
+    padding: 4px 8px 4px 10px; transition: border-color 0.15s;
+  }
+  .conv-row:focus-within { border-color: var(--border); border-left-color: var(--accent); }
+  .conv-label {
+    font-size: 11px; font-weight: 700; color: var(--text1);
+    letter-spacing: 0.08em; text-transform: uppercase;
+    min-width: 28px; flex-shrink: 0;
+  }
+  .conv-input {
+    flex: 1; min-width: 0;
+    background: transparent; border: none; outline: none;
+    color: var(--text0); font-family: var(--font-mono); font-size: 14px;
+    font-weight: 600; text-align: right; caret-color: var(--accent);
+    letter-spacing: 0.04em;
+  }
+  .conv-input::placeholder { color: var(--text2); font-weight: 400; }
+  .conv-input:focus { color: var(--accent); }
+  /* unit-specific: sym + name left of input */
+  .conv-sym  { font-size: 13px; font-weight: 700; color: var(--accent); min-width: 14px; flex-shrink: 0; }
+  .conv-name { font-size: 11px; color: var(--text2); min-width: 34px; flex-shrink: 0; letter-spacing: 0.03em; }
+
+  /* ── History ── */
+  .history-bar { border-top: 1px solid var(--border); padding: 6px 8px; }
+  .history-label { font-size: 10px; color: var(--text2); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 4px; display: block; }
+  .history-list { max-height: 72px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+  .history-item {
+    font-size: 12px; color: var(--text1); cursor: pointer;
+    padding: 1px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: color 0.1s;
+  }
+  .history-item:hover { color: var(--accent); }
+  .history-item mark { background: none; color: var(--accent); font-weight: 700; }
+  .history-empty { font-size: 11px; color: var(--text2); font-style: italic; }
+
+  /* ── fn accordion ── */
+  .fn-toggle {
+    font-family: var(--font-mono); font-size: 12px; font-weight: 600;
+    padding: 6px 8px; border: 1px solid var(--border); border-radius: 4px;
+    background: var(--bg2); color: var(--accent4); cursor: pointer;
+    width: 100%; text-align: left; margin-top: 4px;
+    display: flex; align-items: center; justify-content: space-between;
+    transition: background 0.1s, border-color 0.1s; user-select: none;
+  }
+  .fn-toggle:hover { background: var(--bg3); border-color: var(--accent4); }
+  .fn-toggle.open  { border-bottom-left-radius:0; border-bottom-right-radius:0; border-color: var(--accent4); }
+  .fn-toggle-hint  { font-size: 10px; color: var(--text2); }
+  .fn-arrow { transition: transform 0.2s; display: inline-block; margin-left: 3px; }
+  .fn-toggle.open .fn-arrow { transform: rotate(180deg); }
+  .fn-drawer { overflow: hidden; max-height: 0; transition: max-height 0.22s ease; }
+  .fn-drawer.open { max-height: 320px; }
+  .fn-drawer-inner {
+    border: 1px solid var(--accent4); border-top: none;
+    border-radius: 0 0 4px 4px; padding: 6px;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .angle-toggle {
+    font-family: var(--font-mono); font-size: 11px; font-weight: 700;
+    padding: 5px 7px; background: var(--bg3); border: 1px solid var(--border); border-radius: 4px;
+    color: var(--accent4); cursor: pointer; white-space: nowrap; transition: all 0.15s;
+  }
+  .angle-toggle:hover { border-color: var(--accent4); }
+  .angle-label { font-size: 11px; color: var(--text2); }
+  .btn.pi { color: var(--accent2); font-size: 12px; }
+
+  /* ── Toast ── */
+  .toast {
+    position: fixed; bottom: 12px; left: 50%;
+    transform: translateX(-50%) translateY(8px);
+    background: var(--accent2); color: var(--bg0);
+    font-family: var(--font-mono); font-size: 11px; font-weight: 700;
+    padding: 4px 12px; border-radius: 20px;
+    opacity: 0; pointer-events: none; transition: all 0.2s;
+    letter-spacing: 0.06em; text-transform: uppercase;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<!-- タブ -->
+<div class="tabs">
+  <button class="tab active" onclick="setMode('basic')">Basic</button>
+  <button class="tab"        onclick="setMode('base')">Base</button>
+  <button class="tab"        onclick="setMode('unit')">Unit</button>
+</div>
+
+<!-- 表示エリア（Basicタブ共有） -->
+<div class="display" id="sharedDisplay">
+  <div class="expr-line" id="exprLine">&nbsp;</div>
+  <div class="result-line" id="resultLine">0</div>
+  <div class="intermediate" id="intermediate"></div>
+  <div class="input-row">
+    <input class="expr-input" id="exprInput" type="text"
+           placeholder="Enter expression…" autocomplete="off" spellcheck="false">
+  </div>
+</div>
+
+<!-- Basicパネル -->
+<div class="panel active" id="panel-basic">
+  <div class="btn-grid btn-grid-4">
+    <button class="btn clr" onclick="append('(')">(</button>
+    <button class="btn clr" onclick="append(')')">)</button>
+    <button class="btn clr" onclick="del()">⌫</button>
+    <button class="btn clr" onclick="clearCalc()">C</button>
+    <button class="btn" onclick="append('7')">7</button>
+    <button class="btn" onclick="append('8')">8</button>
+    <button class="btn" onclick="append('9')">9</button>
+    <button class="btn op" onclick="append('÷')">÷</button>
+    <button class="btn" onclick="append('4')">4</button>
+    <button class="btn" onclick="append('5')">5</button>
+    <button class="btn" onclick="append('6')">6</button>
+    <button class="btn op" onclick="append('×')">×</button>
+    <button class="btn" onclick="append('1')">1</button>
+    <button class="btn" onclick="append('2')">2</button>
+    <button class="btn" onclick="append('3')">3</button>
+    <button class="btn op" onclick="append('-')">−</button>
+    <button class="btn" onclick="append('0')">0</button>
+    <button class="btn" onclick="append('.')">.</button>
+    <button class="btn op" onclick="append('%')">%</button>
+    <button class="btn op" onclick="append('+')">+</button>
+  </div>
+  <div class="btn-grid btn-grid-4" style="margin-top:4px">
+    <button class="btn fn" onclick="append('²')" style="font-size: 12px">x²</button>
+    <button class="btn fn" onclick="append('^')"  style="font-size: 12px">xⁿ</button>
+    <button class="btn fn" onclick="appendFn('sqrt')">√</button>
+    <button class="btn eq" onclick="calculate()">=</button>
+  </div>
+
+  <!-- fnアコーディオン -->
+  <button class="fn-toggle" id="fnToggle" onclick="toggleFn()">
+    <span>fn <span class="fn-arrow">▾</span></span>
+    <span class="fn-toggle-hint">sin  cos  tan  log  …</span>
+  </button>
+  <div class="fn-drawer" id="fnDrawer">
+    <div class="fn-drawer-inner">
+      <div class="btn-grid btn-grid-3">
+        <button class="btn fn" onclick="appendFn('sin')">sin</button>
+        <button class="btn fn" onclick="appendFn('cos')">cos</button>
+        <button class="btn fn" onclick="appendFn('tan')">tan</button>
+        <button class="btn fn" onclick="appendFn('asin')">asin</button>
+        <button class="btn fn" onclick="appendFn('acos')">acos</button>
+        <button class="btn fn" onclick="appendFn('atan')">atan</button>
+        <button class="btn fn" onclick="appendFn('sinh')">sinh</button>
+        <button class="btn fn" onclick="appendFn('cosh')">cosh</button>
+        <button class="btn fn" onclick="appendFn('tanh')">tanh</button>
+        <button class="btn pi"  onclick="append('π')">π</button>
+        <button class="btn pi"  onclick="append('e')">e</button>
+        <button class="btn fn" onclick="appendFn('log10')" style="font-size: 10px">log₁₀</button>
+        <button class="btn fn" onclick="appendFn('log2')" style="font-size: 11px">log₂</button>
+        <button class="btn fn" onclick="appendFn('ln')">ln</button>
+        <button class="btn fn" onclick="appendFn('abs')">|x|</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;margin-top:2px">
+        <button class="angle-toggle" id="angleBtn" onclick="toggleAngle()">DEG</button>
+        <span class="angle-label">angle unit</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 定数エリア -->
+  <div class="const-area">
+    <span class="const-label">Constants (click to insert)</span>
+    <div class="const-add-row">
+      <input class="const-name-input" id="constName" placeholder="name" maxlength="8" autocomplete="off" spellcheck="false">
+      <input class="const-val-input"  id="constVal"  placeholder="value or expr" autocomplete="off" spellcheck="false">
+      <button class="const-add-btn" onclick="addConst()">+Add</button>
+    </div>
+    <div class="const-list" id="constList">
+      <span class="const-empty" id="constEmpty">No constants yet</span>
+    </div>
+  </div>
+</div>
+
+
+<!-- Baseパネル -->
+<div class="panel" id="panel-base">
+  <div class="conv-results">
+    <div class="conv-row" id="row-bin">
+      <span class="conv-label">BIN</span>
+      <input class="conv-input" id="inp-bin" placeholder="–" autocomplete="off" spellcheck="false"
+             oninput="onBaseInput('bin')" onkeydown="onBaseKey(event,'bin')" onpaste="filterBasePaste(event,'bin')">
+    </div>
+    <div class="conv-row" id="row-oct">
+      <span class="conv-label">OCT</span>
+      <input class="conv-input" id="inp-oct" placeholder="–" autocomplete="off" spellcheck="false"
+             oninput="onBaseInput('oct')" onkeydown="onBaseKey(event,'oct')" onpaste="filterBasePaste(event,'oct')">
+    </div>
+    <div class="conv-row" id="row-dec">
+      <span class="conv-label">DEC</span>
+      <input class="conv-input" id="inp-dec" placeholder="–" autocomplete="off" spellcheck="false"
+             oninput="onBaseInput('dec')" onkeydown="onBaseKey(event,'dec')" onpaste="filterBasePaste(event,'dec')">
+    </div>
+    <div class="conv-row" id="row-hex">
+      <span class="conv-label">HEX</span>
+      <input class="conv-input" id="inp-hex" placeholder="–" autocomplete="off" spellcheck="false"
+             oninput="onBaseInput('hex')" onkeydown="onBaseKey(event,'hex')" onpaste="filterBasePaste(event,'hex')">
+    </div>
+  </div>
+</div>
+
+<!-- Unitパネル -->
+<div class="panel" id="panel-unit">
+  <div class="conv-results" id="unitResults"></div>
+</div>
+
+<!-- 履歴 -->
+<div class="history-bar" id="histBar" style="display:none">
+  <span class="history-label">History</span>
+  <div class="history-list" id="histList"></div>
+</div>
+
+<div class="toast" id="toast">Copied!</div>
+
+<script>
+// ══ ユーティリティ ════════════════════════════════════════════════
+function escapeHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// ══ 状態管理 ══════════════════════════════════════════════════════
+let mode      = 'basic';
+let angleDeg  = true;
+let history   = [];
+let constants = [];
+let baseValues = {};
+
+const exprInput  = document.getElementById('exprInput');
+const exprLine   = document.getElementById('exprLine');
+const resultLine = document.getElementById('resultLine');
+const intermed   = document.getElementById('intermediate');
+
+// ══ モード切り替え ════════════════════════════════════════════════
+function setMode(m) {
+  mode = m;
+  document.querySelectorAll('.tab').forEach((t, i) =>
+    t.classList.toggle('active', ['basic','base','unit'][i] === m));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + m).classList.add('active');
+  document.getElementById('sharedDisplay').style.display = (m === 'basic') ? '' : 'none';
+  document.getElementById('histBar').style.display = (m === 'basic' && history.length) ? '' : 'none';
+  if (m === 'base')      initBase();
+  else if (m === 'unit') initUnit();
+  else                   exprInput.focus();
+}
+function toggleAngle() {
+  angleDeg = !angleDeg;
+  document.getElementById('angleBtn').textContent = angleDeg ? 'DEG' : 'RAD';
+}
+function toggleFn() {
+  const tog = document.getElementById('fnToggle');
+  const drw = document.getElementById('fnDrawer');
+  tog.classList.toggle('open', drw.classList.toggle('open'));
+}
+
+// ══ 入力ヘルパー ══════════════════════════════════════════════════
+function append(ch) {
+  const s = exprInput.selectionStart, e = exprInput.selectionEnd;
+  exprInput.value = exprInput.value.slice(0, s) + ch + exprInput.value.slice(e);
+  exprInput.selectionStart = exprInput.selectionEnd = s + ch.length;
+  updateExprLine(); exprInput.focus();
+}
+function appendFn(fn) {
+  const s = exprInput.selectionStart, e = exprInput.selectionEnd;
+  const ins = fn + '()';
+  exprInput.value = exprInput.value.slice(0, s) + ins + exprInput.value.slice(e);
+  // cursor inside the parens
+  exprInput.selectionStart = exprInput.selectionEnd = s + ins.length - 1;
+  updateExprLine(); exprInput.focus();
+}
+function del() {
+  const s = exprInput.selectionStart;
+  if (s > 0) { exprInput.value = exprInput.value.slice(0,s-1)+exprInput.value.slice(exprInput.selectionEnd||s); exprInput.selectionStart=exprInput.selectionEnd=s-1; }
+  updateExprLine(); exprInput.focus();
+}
+function clearCalc() {
+  exprInput.value = ''; exprLine.innerHTML = '&nbsp;';
+  resultLine.textContent = '0'; resultLine.className = 'result-line';
+  intermed.textContent = ''; exprInput.focus();
+}
+
+// ══ 括弧の自動補完 ════════════════════════════════════════════════════
+exprInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter')  { e.preventDefault(); calculate(); return; }
+  if (e.key === 'Escape') { clearCalc(); return; }
+  if (e.key === '(') {
+    e.preventDefault();
+    const s = exprInput.selectionStart, en = exprInput.selectionEnd;
+    const sel = exprInput.value.slice(s, en);
+    const ins = sel ? `(${sel})` : '()';
+    exprInput.value = exprInput.value.slice(0, s) + ins + exprInput.value.slice(en);
+    exprInput.selectionStart = exprInput.selectionEnd = sel ? s + ins.length : s + 1;
+    updateExprLine();
+  }
+});
+exprInput.addEventListener('input', updateExprLine);
+
+// ══ 計算エンジン ══════════════════════════════════════════════════
+function buildFns() {
+  const toRad   = angleDeg ? d => d*Math.PI/180 : r => r;
+  const fromRad = angleDeg ? r => r*180/Math.PI : r => r;
+  return {
+    sin:x=>Math.sin(toRad(x)),  cos:x=>Math.cos(toRad(x)),  tan:x=>Math.tan(toRad(x)),
+    asin:x=>fromRad(Math.asin(x)), acos:x=>fromRad(Math.acos(x)), atan:x=>fromRad(Math.atan(x)),
+    sinh:Math.sinh, cosh:Math.cosh, tanh:Math.tanh,
+    sqrt:Math.sqrt, log10:Math.log10, log2:Math.log2, ln:Math.log, abs:Math.abs,
+  };
+}
+function safeEval(raw) {
+  if (!raw || !raw.trim()) return null;
+  const fns = buildFns();
+  let expr = raw;
+  for (const c of constants) expr = expr.replace(new RegExp(`\\b${c.name}\\b`,'g'), `(${c.value})`);
+  expr = expr.replace(/²/g,'**2').replace(/³/g,'**3').replace(/⁴/g,'**4').replace(/\^/g,'**').replace(/×/g,'*').replace(/÷/g,'/').replace(/π/g,'Math.PI').replace(/\be\b/g,'Math.E').replace(/%/g,'/100');
+  for (const [n] of Object.entries(fns)) expr = expr.replace(new RegExp(`\\b${n}\\(`,'g'),`__f__.${n}(`);
+  try {
+    const r = new Function('__f__',`"use strict"; return (${expr})`)(fns);
+    if (typeof r !== 'number' || !isFinite(r)) return null;
+    return r;
+  } catch { return null; }
+}
+
+// ══ 桁区切りフォーマット ═════════════════════════════════════════════
+function fmt(n) {
+  if (n === null || !isFinite(n)) return null;
+  if (Number.isInteger(n) && Math.abs(n) < 1e15) return n.toLocaleString('en-US');
+  const s = parseFloat(n.toPrecision(10));
+  if (Math.abs(s) >= 1e15 || (Math.abs(s) < 1e-6 && s !== 0)) return s.toExponential(4);
+  return s.toLocaleString('en-US', { maximumSignificantDigits: 10 });
+}
+
+// ══ 中間結果 ══════════════════════════════════════════════════════════
+// 最後のトップレベル演算子の左辺 or 右辺を評価して表示
+function getIntermediate(raw) {
+  if (!raw) return '';
+  let depth = 0, lastOp = -1;
+  for (let i = 0; i < raw.length; i++) {
+    const c = raw[i];
+    if (c==='(') depth++;
+    else if (c===')') depth--;
+    else if (depth===0 && '+-×÷'.includes(c) && i>0) lastOp = i;
+  }
+  if (lastOp < 1) return '';
+  const left  = raw.slice(0, lastOp).trim();
+  const right = raw.slice(lastOp + 1).trim();
+  const rv = safeEval(right);
+  if (rv !== null && right.length > 1) {
+    const f = fmt(rv);
+    if (f && right.replace(/,/g,'') !== f.replace(/,/g,'')) return `${right} = ${f}`;
+  }
+  const lv = safeEval(left);
+  if (lv !== null && left.length > 1) {
+    const f = fmt(lv);
+    if (f && left.replace(/,/g,'') !== f.replace(/,/g,'')) return `${left} = ${f}`;
+  }
+  return '';
+}
+
+// ══ 表示更新 (入力中はexprLineのみ更新) ═════════════════════════════
+// **2 → ², **3 → ³, ** → ^ に変換して見やすく表示
+function updateExprLine() {
+  exprLine.textContent = exprInput.value.trim();
+}
+
+function calculate() {
+  const raw = exprInput.value.trim(); if (!raw) return;
+  const val = safeEval(raw);
+  if (val !== null) {
+    const f = fmt(val);
+    exprLine.textContent = raw;
+    resultLine.textContent = f; resultLine.className = 'result-line ok'; intermed.textContent = '';
+    addHistory(raw, f);
+    exprInput.value = String(parseFloat(val.toPrecision(15)));
+    exprInput.select();
+  } else {
+    exprLine.textContent = raw;
+    resultLine.textContent = 'Error'; resultLine.className = 'result-line error'; intermed.textContent = '';
+  }
+}
+
+// ══ 履歴 ══════════════════════════════════════════════════════════
+function addHistory(expr, res) {
+  history.unshift({ expr, res }); if (history.length > 30) history.pop(); renderHistory();
+}
+function renderHistory() {
+  const bar = document.getElementById('histBar');
+  if (mode !== 'basic' || !history.length) { bar.style.display='none'; return; }
+  bar.style.display = '';
+  const list = document.getElementById('histList');
+  list.innerHTML = history.map((h, idx) =>
+    `<div class="history-item" onclick="recallHistory(${idx})">${escapeHtml(h.expr)} = ${escapeHtml(h.res)}</div>`
+  ).join('');
+}
+function recallHistory(i) { exprInput.value = history[i].expr; updateExprLine(); exprInput.focus(); }
+
+// ══ 定数 ══════════════════════════════════════════════════════════════
+function addConst() {
+  const nameEl = document.getElementById('constName'), valEl = document.getElementById('constVal');
+  const name = nameEl.value.trim(), raw = valEl.value.trim();
+  if (!name || !raw) return;
+  if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name)) {
+    nameEl.style.borderColor = 'var(--accent3)'; setTimeout(() => nameEl.style.borderColor='', 1000); return;
+  }
+  const val = safeEval(raw);
+  if (val === null) {
+    // 評価できない値は登録拒否（コードインジェクション対策）
+    valEl.style.borderColor = 'var(--accent3)'; setTimeout(() => valEl.style.borderColor='', 1000); return;
+  }
+  const stored = String(val);
+  const idx = constants.findIndex(c => c.name === name);
+  if (idx >= 0) constants[idx] = { name, value: stored };
+  else constants.push({ name, value: stored });
+  nameEl.value = ''; valEl.value = '';
+  renderConsts(); exprInput.focus();
+}
+function removeConst(i) { constants.splice(i, 1); renderConsts(); }
+function insertConst(name) { append(name); }
+function renderConsts() {
+  const list = document.getElementById('constList'), empty = document.getElementById('constEmpty');
+  if (!constants.length) { list.innerHTML=''; list.appendChild(empty); empty.style.display=''; return; }
+  empty.style.display = 'none';
+  list.innerHTML = constants.map((c, i) => {
+    const display = fmt(parseFloat(c.value)) ?? c.value;
+    return `<div class="const-chip" onclick="insertConst('${escapeHtml(c.name)}')">
+      <span class="const-chip-name">${escapeHtml(c.name)}</span>
+      <span class="const-chip-val">=${escapeHtml(display)}</span>
+      <span class="const-chip-del" onclick="event.stopPropagation();removeConst(${i})">×</span>
+    </div>`;
+  }).join('');
+}
+document.getElementById('constVal').addEventListener('keydown', e => { if(e.key==='Enter'){e.preventDefault();addConst();} });
+
+// ══ 基数変換 ══════════════════════════════════════════════════════
+const BASE_RADIX = { bin:2, oct:8, dec:10, hex:16 };
+let baseUpdating = false;
+
+function onBaseInput(src) {
+  if (baseUpdating) return;
+  baseUpdating = true;
+  const raw = document.getElementById('inp-'+src).value.trim();
+  const keys = ['bin','oct','dec','hex'];
+  if (!raw) {
+    keys.filter(k => k !== src).forEach(k => document.getElementById('inp-'+k).value = '');
+    baseUpdating = false; return;
+  }
+  const num = parseInt(raw.replace(/\s/g,''), BASE_RADIX[src]);
+  if (isNaN(num) || num < 0) {
+    keys.filter(k => k !== src).forEach(k => document.getElementById('inp-'+k).value = 'Error');
+    baseUpdating = false; return;
+  }
+  const binRaw = num.toString(2);
+  const binFmt = binRaw.split('').reverse().join('').replace(/(.{4})/g,'$1 ').trim().split('').reverse().join('');
+  const vals = {
+    bin: binFmt,
+    oct: num.toString(8),
+    dec: num.toLocaleString('en-US'),
+    hex: num.toString(16).toUpperCase(),
+  };
+  keys.filter(k => k !== src).forEach(k => document.getElementById('inp-'+k).value = vals[k]);
+  // also update the source field for bin (add spaces) and dec (add commas) after typing
+  if (src === 'bin') document.getElementById('inp-bin').value = binFmt;
+  baseUpdating = false;
+}
+
+const BASE_ALLOWED = { bin:/[01]/, oct:/[0-7]/, dec:/[0-9]/, hex:/[0-9a-fA-F]/ };
+function onBaseKey(e, src) {
+  if (e.key === 'Escape') {
+    ['bin','oct','dec','hex'].forEach(k => document.getElementById('inp-'+k).value = '');
+    return;
+  }
+  // allow control keys
+  if (e.ctrlKey || e.metaKey || e.key.length > 1) return;
+  if (!BASE_ALLOWED[src].test(e.key)) e.preventDefault();
+}
+function filterBasePaste(e, src) {
+  e.preventDefault();
+  const text = (e.clipboardData || window.clipboardData).getData('text');
+  const filtered = text.split('').filter(ch => BASE_ALLOWED[src].test(ch)).join('');
+  const el = document.getElementById('inp-'+src);
+  const s = el.selectionStart, en = el.selectionEnd;
+  el.value = el.value.slice(0,s) + filtered + el.value.slice(en);
+  onBaseInput(src);
+}
+
+function initBase() { document.getElementById('inp-dec').focus(); }
+
+// ══ 単位変換（SIプレフィックス）════════════════════════════════════
+const SI = [
+  {exp:12, sym:'T', name:'tera'},  {exp:9,  sym:'G', name:'giga'},
+  {exp:6,  sym:'M', name:'mega'},  {exp:3,  sym:'k', name:'kilo'},
+  {exp:0,  sym:'—', name:'base'},  {exp:-2, sym:'c', name:'centi'},
+  {exp:-3, sym:'m', name:'milli'}, {exp:-6, sym:'μ', name:'micro'},
+  {exp:-9, sym:'n', name:'nano'},  {exp:-12,sym:'p', name:'pico'},
+];
+let unitUpdating = false;
+
+function fmtUnitRaw(n) {
+  if (!isFinite(n)) return '';
+  if (n === 0) return '0';
+  return parseFloat(n.toPrecision(10)).toString();
+}
+
+function uid(exp) { return exp < 0 ? 'n' + Math.abs(exp) : String(exp); }
+
+function buildUnitRows() {
+  const el = document.getElementById('unitResults');
+  el.innerHTML = SI.map(p => {
+    const id = uid(p.exp);
+    return `<div class="conv-row" id="urow-${id}">
+      <span class="conv-sym">${p.sym}</span>
+      <span class="conv-name">${p.name}</span>
+      <input class="conv-input" id="uinp-${id}" placeholder="–"
+             autocomplete="off" spellcheck="false"
+             oninput="onUnitInput(${p.exp})"
+             onkeydown="onUnitKey(event)"
+             onpaste="filterUnitPaste(event,${p.exp})">
+    </div>`;
+  }).join('');
+}
+
+function onUnitInput(srcExp) {
+  if (unitUpdating) return;
+  unitUpdating = true;
+  const raw = document.getElementById('uinp-'+uid(srcExp)).value.trim();
+  const num = parseFloat(raw);
+  SI.forEach(p => {
+    if (p.exp === srcExp) return;
+    const inp = document.getElementById('uinp-'+uid(p.exp));
+    if (!raw || isNaN(num)) { inp.value = ''; return; }
+    const baseVal   = num * Math.pow(10, srcExp);
+    const converted = baseVal * Math.pow(10, -p.exp);
+    inp.value = fmtUnitRaw(converted);
+  });
+  unitUpdating = false;
+}
+
+function onUnitKey(e) {
+  if (e.key === 'Escape') { SI.forEach(p => { document.getElementById('uinp-'+uid(p.exp)).value = ''; }); return; }
+  if (e.ctrlKey || e.metaKey || e.key.length > 1) return;
+  // allow digits, dot, minus (only at start)
+  const el = e.target;
+  if (e.key === '-' && el.selectionStart === 0 && !el.value.includes('-')) return;
+  if (e.key === '.' && !el.value.includes('.')) return;
+  if (!/[0-9]/.test(e.key)) e.preventDefault();
+}
+function filterUnitPaste(e, srcExp) {
+  e.preventDefault();
+  const text = (e.clipboardData || window.clipboardData).getData('text');
+  const num = parseFloat(text);
+  if (!isNaN(num)) {
+    document.getElementById('uinp-'+uid(srcExp)).value = num.toString();
+    onUnitInput(srcExp);
+  }
+}
+
+function initUnit() {
+  buildUnitRows();
+  document.getElementById('uinp-0').focus();
+}
+
+// ══ トースト通知 ══════════════════════════════════════════════════
+function showToast() {
+  const t = document.getElementById('toast'); t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),1400);
+}
+
+// ══ 初期化 ════════════════════════════════════════════════════════
+renderConsts();
+buildUnitRows();
+exprInput.focus();
+</script>
+</body>
+</html>

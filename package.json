@@ -1,0 +1,53 @@
+{
+  "name": "calchub",
+  "displayName": "CalcHub",
+  "description": "Sidebar calculator for VS Code — Basic, Functions, Base conversion, SI Unit conversion",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [],
+  "main": "./out/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "calchub-container",
+          "title": "CalcHub",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "calchub-container": [
+        {
+          "type": "webview",
+          "id": "calchub.view",
+          "name": "Calculator"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "vscode:prepublish": "npm run compile"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.80.0",
+    "@types/node": "^18.0.0",
+    "typescript": "^5.0.0"
+  },
+  "license": "MIT",
+  "icon": "icon.png",
+  "keywords": [
+    "calculator",
+    "sidebar",
+    "base conversion",
+    "unit conversion",
+    "math"
+  ]
+}
