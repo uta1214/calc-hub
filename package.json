@@ -1,6 +1,10 @@
 {
-  "name": "calc-hub",
-  "displayName": "Calc Hub",
+  "name": "calchub",
+  "displayName": "CalcHub",
+  "publisher": "uta-orange-1214",
+  "author": {
+    "name": "uta"
+  },
   "description": "Sidebar calculator for VS Code — Basic, Functions, Base conversion, SI Unit conversion",
   "version": "0.0.1",
   "engines": {
