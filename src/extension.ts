@@ -5,7 +5,7 @@ import * as fs from 'fs';
 export function activate(context: vscode.ExtensionContext) {
   const provider = new CalcHubProvider(context.extensionUri);
   context.subscriptions.push(
-    vscode.window.registerWebviewViewProvider('calchub.view', provider)
+    vscode.window.registerWebviewViewProvider('calc-hub.view', provider)
   );
 }
 

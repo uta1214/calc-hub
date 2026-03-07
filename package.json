@@ -1,10 +1,14 @@
 {
-  "name": "calchub",
-  "displayName": "CalcHub",
+  "name": "calc-hub",
+  "displayName": "Calc Hub",
   "description": "Sidebar calculator for VS Code — Basic, Functions, Base conversion, SI Unit conversion",
   "version": "0.0.1",
   "engines": {
     "vscode": "^1.80.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/uta1214/calc-hub"
   },
   "categories": [
     "Other"
@@ -15,17 +19,17 @@
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "calchub-container",
-          "title": "CalcHub",
+          "id": "calc-hub-container",
+          "title": "Calc Hub",
           "icon": "media/icon.svg"
         }
       ]
     },
     "views": {
-      "calchub-container": [
+      "calc-hub-container": [
         {
           "type": "webview",
-          "id": "calchub.view",
+          "id": "calc-hub.view",
           "name": "Calculator"
         }
       ]
